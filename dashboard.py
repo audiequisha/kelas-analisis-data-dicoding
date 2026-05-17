@@ -152,8 +152,8 @@ st.pyplot(fig1)
 
 with st.expander("Lihat Analisis & Kesimpulan Pertanyaan 1"):
     st.write("""
-        * **Korelasi Negatif Kuat:** Terlihat degradasi nilai yang sangat linear. Pesanan tepat waktu mengamankan rating **4.27**, namun langsung turun drastis sejak hari pertama keterlambatan.
-        * **Titik Nadir Sakral:** Keterlambatan parah di atas satu minggu menekan kepuasan pelanggan hingga menyentuh titik terendah yaitu **1.76**.
+        * **Korelasi Negatif Kuat:** Terlihat degradasi nilai yang sangat linear. Pesanan tepat waktu mengamankan rating **4.29**, namun langsung turun drastis sejak hari pertama keterlambatan.
+        * **Titik Nadir Sakral:** Keterlambatan parah di atas satu minggu menekan kepuasan pelanggan hingga menyentuh titik terendah yaitu **1.64**.
     """)
 
 st.markdown("---")
