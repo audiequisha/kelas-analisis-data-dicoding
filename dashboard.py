@@ -21,11 +21,15 @@ def load_data():
             df[col] = pd.to_datetime(df[col])
     
     # Hitung Keterlambatan (Hari)
-    df['delay_days'] = (df['order_delivered_customer_date'] - df['order_estimated_delivery_date']).dt.days
+    if 'order_delivered_customer_date' in df.columns and 'order_estimated_delivery_date' in df.columns:
+        df['delay_days'] = (df['order_delivered_customer_date'] - df['order_estimated_delivery_date']).dt.days
+    else:
+        df['delay_days'] = 0
     
     # Tambahkan Kolom Tahun untuk Filter
-    df['year'] = df['order_purchase_timestamp'].dt.year
-    
+    if 'order_purchase_timestamp' in df.columns:
+        df['year'] = df['order_purchase_timestamp'].dt.year
+        
     return df
 
 df = load_data()
@@ -36,8 +40,9 @@ df = load_data()
 with st.sidebar:
     st.image("https://github.com/dicodingacademy/assets/raw/main/logo.png", width=200)
     st.title("Filter Analisis")
-    # Pilihan Tahun
-    year_list = ["Semua Tahun"] + sorted(df['year'].unique().tolist())
+    
+    # Pilihan Tahun (Menangani nilai NaN jika ada)
+    year_list = ["Semua Tahun"] + sorted(df['year'].dropna().unique().astype(int).tolist())
     selected_year = st.selectbox("Pilih Tahun Pesanan:", year_list)
 
 # Terapkan Filter
@@ -74,23 +79,44 @@ st.markdown("---")
 st.header("1. Pengaruh Keterlambatan Terhadap Kepuasan")
 st.subheader("Bagaimana durasi keterlambatan pengiriman berdampak pada skor ulasan pelanggan?")
 
-# Proses Data Cluster
-def categorize_delay(days):
-    if days <= 0: return "Tepat Waktu"
-    elif days <= 3: return "Telat 1-3 Hari"
-    else: return "Telat > 3 Hari"
+# KEMBALI MENGGUNAKAN 4 KATEGORI CLUSTERING!
+def categorize_delivery(deviation):
+    if deviation < 0:
+        return "Lebih Cepat"
+    elif deviation == 0:
+        return "Tepat Waktu"
+    elif deviation > 0 and deviation <= 3:
+        return "Terlambat Ringan (1-3 Hari)"
+    else:
+        return "Terlambat Parah (> 3 Hari)"
 
-main_df['delay_cluster'] = main_df['delay_days'].apply(categorize_delay)
+main_df['delay_cluster'] = main_df['delay_days'].apply(categorize_delivery)
 cluster_analysis = main_df.groupby('delay_cluster')['review_score'].mean().reset_index()
-order = ["Tepat Waktu", "Telat 1-3 Hari", "Telat > 3 Hari"]
 
-# Visualisasi
+# Mengurutkan urutan bar chart
+cluster_order = ["Lebih Cepat", "Tepat Waktu", "Terlambat Ringan (1-3 Hari)", "Terlambat Parah (> 3 Hari)"]
+cluster_analysis['delay_cluster'] = pd.Categorical(cluster_analysis['delay_cluster'], categories=cluster_order, ordered=True)
+cluster_analysis = cluster_analysis.sort_values('delay_cluster')
+
+# Visualisasi Bar Chart
 fig1, ax1 = plt.subplots(figsize=(10, 5))
+colors_cluster = ["#2ecc71", "#27ae60", "#f39c12", "#c0392b"]
+
 sns.barplot(
-    x='delay_cluster', y='review_score', data=cluster_analysis, 
-    order=order, palette=["#2ecc71", "#f39c12", "#c0392b"], ax=ax1
+    x='delay_cluster', 
+    y='review_score', 
+    data=cluster_analysis, 
+    palette=colors_cluster, 
+    hue='delay_cluster',
+    legend=False,
+    ax=ax1
 )
-ax1.set_ylim(0, 5)
+
+ax1.set_xlabel('Kategori Keterlambatan Pengiriman', fontsize=10)
+ax1.set_ylabel('Rata-Rata Skor Ulasan', fontsize=10)
+ax1.set_ylim(0, 5.2)
+
+# Angka di atas bar
 for p in ax1.patches:
     ax1.annotate(f"{p.get_height():.2f}", (p.get_x() + p.get_width() / 2., p.get_height()),
                  ha='center', va='center', xytext=(0, 8), textcoords='offset points', fontweight='bold')
@@ -99,10 +125,11 @@ st.pyplot(fig1)
 
 with st.expander("Lihat Penjelasan Grafik"):
     st.write("""
-        Grafik di atas menunjukkan korelasi negatif yang kuat antara keterlambatan dan kepuasan.
-        *   **Tepat Waktu**: Pelanggan sangat puas dengan skor di atas 4.0.
-        *   **Keterlambatan Parah**: Skor anjlok drastis saat barang telat lebih dari 3 hari. 
-        *   **Insight**: Akurasi pengiriman adalah faktor paling vital dalam menjaga reputasi toko.
+        Grafik *clustering* di atas membuktikan bahwa akurasi pengiriman adalah pilar utama kepuasan pelanggan:
+        * **Apresiasi Tertinggi**: Pelanggan sangat puas (skor > 4.10) jika paket tiba sesuai estimasi atau bahkan lebih cepat.
+        * **Toleransi Ringan**: Menariknya, pada fase Terlambat Ringan (1-3 Hari), pelanggan mulai kecewa namun skor mampu bertahan di angka 3.29.
+        * **Kehancuran Reputasi**: Kepuasan hancur secara mutlak (skor anjlok ke 1.79) ketika keterlambatan menyentuh fase Terlambat Parah (> 3 Hari).
+        * **Action Item**: Intervensi *Customer Service* wajib dilakukan sebelum paket memasuki hari ke-4 keterlambatan guna mencegah *rating* bintang 1.
     """)
 
 st.markdown("---")
@@ -117,6 +144,7 @@ st.subheader("Kapan waktu tersibuk pelanggan melakukan transaksi untuk menentuka
 main_df['purchase_day'] = main_df['order_purchase_timestamp'].dt.day_name()
 main_df['purchase_hour'] = main_df['order_purchase_timestamp'].dt.hour
 days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 transaction_pattern = main_df.groupby(['purchase_day', 'purchase_hour']).size().unstack(fill_value=0)
 transaction_pattern = transaction_pattern.reindex(days_order)
 
@@ -129,10 +157,10 @@ st.pyplot(fig2)
 
 with st.expander("Lihat Penjelasan Grafik"):
     st.write("""
-        Heatmap menunjukkan konsentrasi kepadatan transaksi (warna semakin gelap berarti semakin ramai).
-        *   **Peak Hours**: Transaksi paling ramai terjadi pada hari kerja (Senin-Jumat) pukul 10:00 - 16:00.
-        *   **Low Hours**: Transaksi menurun drastis saat tengah malam dan akhir pekan.
-        *   **Strategi**: Jadwalkan kampanye promosi atau *Flash Sale* pada hari kerja di siang hari untuk menjangkau traffic maksimal.
+        Peta panas (*heatmap*) ini mengonfirmasi waktu ideal peluncuran promosi pemasaran:
+        * **Peak Hours**: Lonjakan volume transaksi selalu terjadi pada hari kerja (Senin hingga Rabu), secara spesifik saat istirahat siang (pukul 13:00 - 15:00) dan santai malam (pukul 20:00 - 22:00).
+        * **Low Hours**: Tingkat partisipasi belanja menunjukkan tren penurunan konstan ketika memasuki akhir pekan (Sabtu-Minggu).
+        * **Action Item**: Tim *Marketing* direkomendasikan mengalokasikan anggaran iklan terbesar untuk meluncurkan *Flash Sale* setiap hari Selasa atau Rabu pukul 20:00 guna mendongkrak konversi maksimal.
     """)
 
-st.caption("Copyright © 2024 - Proyek Analisis Data Audie Quisha")
+st.caption("Copyright © 2024 - Proyek Analisis Data Audie")
