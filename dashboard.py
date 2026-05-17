@@ -122,9 +122,9 @@ st.pyplot(fig1)
 with st.expander("Lihat Penjelasan Grafik"):
     st.write("""
         Grafik batang ini menunjukkan korelasi negatif yang sangat jelas:
-        * **Tepat Waktu**: Pesanan yang tiba sesuai estimasi (0 hari telat) meraih skor sangat memuaskan di angka rata-rata 4.27.
+        * **Tepat Waktu**: Pesanan yang tiba sesuai estimasi (0 hari telat) meraih skor sangat memuaskan di angka rata-rata 4.29.
         * **Penurunan Proporsional**: Setiap penambahan 1 hari keterlambatan, skor ulasan pelanggan terus mengalami penurunan drastis.
-        * **Titik Terendah**: Paket yang telat lebih dari 1 minggu akan menghancurkan kepuasan pelanggan hingga menyentuh skor terendah di angka 1.76.
+        * **Titik Terendah**: Paket yang telat lebih dari 1 minggu akan menghancurkan kepuasan pelanggan hingga menyentuh skor terendah di angka 1.70.
         * **Insight**: Efisiensi sistem logistik dan akurasi estimasi kedatangan memiliki dampak langsung secara proporsional terhadap sentimen dan reputasi brand di mata pelanggan.
     """)
 
